@@ -1126,10 +1126,10 @@ func (t *tagKeyValue) Load(value string) seriesIDs {
 		return nil
 	}
 
-	t.mu.RLock()
+	t.mu.Lock()
 	entry := t.entries[value]
 	ids := entry.ids()
-	t.mu.RUnlock()
+	t.mu.Unlock()
 	return ids
 }
 
@@ -1141,10 +1141,11 @@ func (t *tagKeyValue) Range(f func(tagValue string, a seriesIDs) bool) {
 		return
 	}
 
-	t.mu.RLock()
-	defer t.mu.RUnlock()
 	for tagValue, entry := range t.entries {
+		t.mu.Lock()
 		ids := entry.ids()
+		t.mu.Unlock()
+
 		if !f(tagValue, ids) {
 			return
 		}
