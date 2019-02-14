@@ -2,6 +2,10 @@ import {TimeRange} from 'src/types'
 
 export const TIME_RANGES: TimeRange[] = [
   {
+    lower: '',
+    label: 'Date Picker',
+  },
+  {
     seconds: 300,
     lower: 'now() - 5m',
     upper: null,
