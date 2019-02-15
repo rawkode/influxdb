@@ -3,7 +3,7 @@ import React, {PureComponent} from 'react'
 
 // Components
 import {Dropdown} from 'src/clockface'
-import CustomTimeRange from 'src/shared/components/CustomTimeRange'
+import DateRangePicker from 'src/shared/components/dateRangePicker/DateRangePicker'
 
 // Constants
 import {TIME_RANGES} from 'src/shared/constants/timeRanges'
@@ -16,16 +16,27 @@ interface Props {
   onSetTimeRange: (timeRange: TimeRange) => void
 }
 
-class TimeRangeDropdown extends PureComponent<Props> {
+interface State {
+  isDatePickerOpen: boolean
+}
+
+class TimeRangeDropdown extends PureComponent<Props, State> {
+  constructor(props: Props) {
+    super(props)
+
+    this.state = {isDatePickerOpen: false}
+  }
+
   public render() {
-    const timeRange = this.validateTimeRange()
+    const timeRange = this.timeRange
 
     return (
       <>
-        {this.isDatePickerSelected && (
-          <CustomTimeRange
+        {this.isDatePickerVisible && (
+          <DateRangePicker
             timeRange={timeRange}
-            onSetTimeRange={this.props.onSetTimeRange}
+            onSetTimeRange={this.handleApplyTimeRange}
+            onClickOutside={this.handleHideDatePicker}
           />
         )}
         <Dropdown
@@ -43,11 +54,7 @@ class TimeRangeDropdown extends PureComponent<Props> {
     )
   }
 
-  private get isDatePickerSelected(): boolean {
-    return this.props.timeRange.label === 'Date Picker'
-  }
-
-  private validateTimeRange = (): TimeRange => {
+  private get timeRange(): TimeRange {
     const {timeRange} = this.props
 
     if (timeRange.label === 'Date Picker') {
@@ -63,6 +70,22 @@ class TimeRangeDropdown extends PureComponent<Props> {
     return selectedTimeRange
   }
 
+  private get isDatePickerVisible() {
+    return (
+      this.state.isDatePickerOpen &&
+      this.props.timeRange.label === 'Date Picker'
+    )
+  }
+
+  private handleApplyTimeRange = (timeRange: TimeRange) => {
+    this.props.onSetTimeRange(timeRange)
+    this.handleHideDatePicker()
+  }
+
+  private handleHideDatePicker = () => {
+    this.setState({isDatePickerOpen: false})
+  }
+
   private handleChange = (label: string): void => {
     const {onSetTimeRange} = this.props
     const timeRange = TIME_RANGES.find(t => t.label === label)
@@ -71,6 +94,9 @@ class TimeRangeDropdown extends PureComponent<Props> {
       const date = new Date().toISOString()
       timeRange.lower = date
       timeRange.upper = date
+      onSetTimeRange(timeRange)
+      this.setState({isDatePickerOpen: true})
+      return
     }
 
     onSetTimeRange(timeRange)

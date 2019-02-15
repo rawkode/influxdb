@@ -34,8 +34,10 @@ function buildQueryHelper(
   const tagFilterCall = formatTagFilterCall(builderConfig.tags)
   const fnCall = fn ? formatFunctionCall(fn) : ''
 
+  const rangeCall = `|> range(start: ${TIME_RANGE_START})`
+
   const query = `from(bucket: "${bucket}")
-  |> range(start: ${TIME_RANGE_START})${tagFilterCall}${fnCall}`
+  ${rangeCall}${tagFilterCall}${fnCall}`
 
   return query
 }

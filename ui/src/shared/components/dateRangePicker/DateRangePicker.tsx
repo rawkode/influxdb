@@ -9,11 +9,13 @@ import 'src/shared/components/dateRangePicker/DateRangePicker.scss'
 
 // Types
 import {TimeRange} from 'src/types'
-import {Button} from '@influxdata/clockface'
+import {Button, ComponentColor, ComponentSize} from '@influxdata/clockface'
+import {ClickOutside} from '../ClickOutside'
 
 interface Props {
   timeRange: TimeRange
   onSetTimeRange: (timeRange: TimeRange) => void
+  onClickOutside: () => void
 }
 
 interface State {
@@ -32,15 +34,30 @@ class DateRangePicker extends PureComponent<Props, State> {
   }
 
   public render() {
+    const {onClickOutside} = this.props
     const {upper, lower} = this.state
 
     return (
-      <div className="date-range-picker">
-        <DatePicker dateTime={lower} onSelectDate={this.handleSelectLower} />
-        <DatePicker dateTime={upper} onSelectDate={this.handleSelectUpper} />
-
-        <Button onClick={this.handleSetTimeRange} text="Apply" />
-      </div>
+      <ClickOutside onClickOutside={onClickOutside}>
+        <div className="range-picker react-datepicker-ignore-onclickoutside">
+          <div className="range-picker--date-pickers">
+            <DatePicker
+              dateTime={lower}
+              onSelectDate={this.handleSelectLower}
+            />
+            <DatePicker
+              dateTime={upper}
+              onSelectDate={this.handleSelectUpper}
+            />
+          </div>
+          <Button
+            color={ComponentColor.Primary}
+            size={ComponentSize.Small}
+            onClick={this.handleSetTimeRange}
+            text="Apply Time Range"
+          />
+        </div>
+      </ClickOutside>
     )
   }
 

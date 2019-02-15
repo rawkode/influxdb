@@ -5,8 +5,44 @@
 
 @import 'src/style/modules';
 
-.date-range-picker {
-  position: absolute;
-  top: 10%;
-  right: 50%;
+.range-picker {
+  position: fixed;
+  text-align: center;
+  background-color: $g2-kevlar;
+  border: $ix-border solid $c-pool;
+  padding: $ix-marg-b;
+  border-radius: $ix-radius;
+  z-index: 9999;
+  
+  .range-picker--date-pickers {
+    flex-wrap: nowrap;
+    display: flex;
+    flex-direction: row;
+    margin: $ix-marg-b 0;
+
+    .range-picker--date-picker {
+      .range-picker--popper-container {
+        position: relative;
+      }
+    
+      .range-picker--popper {
+        position: relative !important;
+        transform: none !important;
+
+        .range-picker--calendar {
+          background-color: transparent;
+          border: none;
+          color: hotpink;
+          
+          .range-picker--day {
+            color: violet;
+          }
+
+          .react-datepicker__triangle {
+            display: none;
+          }
+        }
+      }
+    }
+  }
 }
