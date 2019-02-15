@@ -16,11 +16,8 @@ import (
 	"github.com/influxdata/flux"
 	"github.com/influxdata/flux/ast"
 	"github.com/influxdata/flux/csv"
-	"github.com/influxdata/flux/interpreter"
 	"github.com/influxdata/flux/lang"
 	"github.com/influxdata/flux/parser"
-	"github.com/influxdata/flux/semantic"
-	"github.com/influxdata/flux/values"
 	platform "github.com/influxdata/influxdb"
 	"github.com/influxdata/influxdb/query"
 	"github.com/influxdata/influxql"
@@ -28,6 +25,7 @@ import (
 
 // QueryRequest is a flux query request.
 type QueryRequest struct {
+	Extern  *ast.File    `json:"extern,omitempty"`
 	Spec    *flux.Spec   `json:"spec,omitempty"`
 	AST     *ast.Package `json:"ast,omitempty"`
 	Query   string       `json:"query"`
@@ -68,6 +66,10 @@ func (r QueryRequest) WithDefaults() QueryRequest {
 func (r QueryRequest) Validate() error {
 	if r.Query == "" && r.Spec == nil && r.AST == nil {
 		return errors.New(`request body requires either query, spec, or AST`)
+	}
+
+	if r.Spec != nil && r.Extern != nil {
+		return errors.New("request body cannot specify both a spec and an external declarations")
 	}
 
 	if r.Type != "flux" {
@@ -206,47 +208,6 @@ func columnFromCharacter(q string, char int) int {
 
 var influxqlParseErrorRE = regexp.MustCompile(`^(.+) at line (\d+), char (\d+)$`)
 
-func nowFunc(now time.Time) values.Function {
-	timeVal := values.NewTime(values.ConvertTime(now))
-	ftype := semantic.NewFunctionPolyType(semantic.FunctionPolySignature{
-		Return: semantic.Time,
-	})
-	call := func(args values.Object) (values.Value, error) {
-		return timeVal, nil
-	}
-	sideEffect := false
-	return values.NewFunction("now", ftype, call, sideEffect)
-}
-
-func toSpec(p *ast.Package, now func() time.Time) (*flux.Spec, error) {
-	semProg, err := semantic.New(p)
-	if err != nil {
-		return nil, err
-	}
-
-	scope := flux.Prelude()
-	scope.Set("now", nowFunc(now()))
-
-	itrp := interpreter.NewInterpreter()
-
-	sideEffects, err := itrp.Eval(semProg, scope, flux.StdLib())
-	if err != nil {
-		return nil, err
-	}
-
-	nowOpt, ok := scope.Lookup("now")
-	if !ok {
-		return nil, fmt.Errorf("now option not set")
-	}
-
-	nowTime, err := nowOpt.Function().Call(nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return flux.ToSpec(sideEffects, nowTime.Time().Time())
-}
-
 // ProxyRequest returns a request to proxy from the flux.
 func (r QueryRequest) ProxyRequest() (*query.ProxyRequest, error) {
 	return r.proxyRequest(time.Now)
@@ -259,17 +220,24 @@ func (r QueryRequest) proxyRequest(now func() time.Time) (*query.ProxyRequest, e
 	// Query is preferred over spec
 	var compiler flux.Compiler
 	if r.Query != "" {
-		compiler = lang.FluxCompiler{
-			Query: r.Query,
-		}
-	} else if r.AST != nil {
-		var err error
-		r.Spec, err = toSpec(r.AST, now)
+		pkg, err := flux.Parse(r.Query)
 		if err != nil {
 			return nil, err
 		}
-		compiler = lang.SpecCompiler{
-			Spec: r.Spec,
+		if r.Extern != nil {
+			pkg.Files = append([]*ast.File{r.Extern}, pkg.Files...)
+		}
+		compiler = lang.ASTCompiler{
+			AST: pkg,
+			Now: now,
+		}
+	} else if r.AST != nil {
+		if r.Extern != nil {
+			r.AST.Files = append([]*ast.File{r.Extern}, r.AST.Files...)
+		}
+		compiler = lang.ASTCompiler{
+			AST: r.AST,
+			Now: now,
 		}
 	} else if r.Spec != nil {
 		compiler = lang.SpecCompiler{
@@ -312,6 +280,9 @@ func QueryRequestFromProxyRequest(req *query.ProxyRequest) (*QueryRequest, error
 	case lang.SpecCompiler:
 		qr.Type = "flux"
 		qr.Spec = c.Spec
+	case lang.ASTCompiler:
+		qr.Type = "flux"
+		qr.AST = c.AST
 	default:
 		return nil, fmt.Errorf("unsupported compiler %T", c)
 	}

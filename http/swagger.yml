@@ -4541,6 +4541,9 @@ components:
       required:
         - query
       properties:
+        extern:
+          description: external preprocessing options
+          type: object
         query:
           description: query script to execute.
           type: string
