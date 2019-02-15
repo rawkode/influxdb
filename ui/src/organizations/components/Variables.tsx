@@ -9,6 +9,7 @@ import {Button, ComponentSize} from '@influxdata/clockface'
 import VariableList from 'src/organizations/components/VariableList'
 import {Input, OverlayTechnology, EmptyState} from 'src/clockface'
 import FilterList from 'src/shared/components/Filter'
+import AddResourceDropdwon from 'src/shared/components/AddResourceDropdown'
 
 // Actions
 import * as NotificationsActions from 'src/types/actions/notifications'
@@ -35,21 +36,50 @@ interface Props {
 
 interface State {
   searchTerm: string
-  overlayState: OverlayState
+  createOverlayState: OverlayState
+  importOverlayState: OverlayState
 }
 
 export default class Variables extends PureComponent<Props, State> {
+  private get emptyState(): JSX.Element {
+    const {orgName} = this.props
+    const {searchTerm} = this.state
+
+    if (_.isEmpty(searchTerm)) {
+      return (
+        <EmptyState size={ComponentSize.Medium}>
+          <EmptyState.Text
+            text={`${orgName} does not own any Variables , why not create one?`}
+            highlightWords={['Buckets']}
+          />
+          <Button
+            text="Create Variable"
+            icon={IconFont.Plus}
+            color={ComponentColor.Primary}
+            onClick={this.handleOpenCreateOverlay}
+          />
+        </EmptyState>
+      )
+    }
+
+    return (
+      <EmptyState size={ComponentSize.Medium}>
+        <EmptyState.Text text="No Variables match your query" />
+      </EmptyState>
+    )
+  }
   constructor(props: Props) {
     super(props)
     this.state = {
       searchTerm: '',
-      overlayState: OverlayState.Closed,
+      createOverlayState: OverlayState.Closed,
+      importOverlayState: OverlayState.Closed,
     }
   }
 
   public render() {
     const {variables, orgID} = this.props
-    const {searchTerm, overlayState} = this.state
+    const {searchTerm, createOverlayState} = this.state
 
     return (
       <>
@@ -62,11 +92,10 @@ export default class Variables extends PureComponent<Props, State> {
             onChange={this.handleFilterChange}
             onBlur={this.handleFilterBlur}
           />
-          <Button
-            text="Create Variable"
-            icon={IconFont.Plus}
-            color={ComponentColor.Primary}
-            onClick={this.handleOpenModal}
+          <AddResourceDropdwon
+            resource="Variable"
+            onSelectImport={this.handleOpenImportOverlay}
+            onSelectNew={this.handleOpenCreateOverlay}
           />
         </TabbedPageHeader>
         <FilterList<Variable>
@@ -82,7 +111,7 @@ export default class Variables extends PureComponent<Props, State> {
             />
           )}
         </FilterList>
-        <OverlayTechnology visible={overlayState === OverlayState.Open}>
+        <OverlayTechnology visible={createOverlayState === OverlayState.Open}>
           <CreateVariableOverlay
             onCreateVariable={this.handleCreateVariable}
             onCloseModal={this.handleCloseModal}
@@ -93,6 +122,8 @@ export default class Variables extends PureComponent<Props, State> {
     )
   }
 
+  public handleOpenImportOverlay = (): void => {}
+
   private handleFilterChange = (e: ChangeEvent<HTMLInputElement>) => {
     const {value} = e.target
     this.setState({searchTerm: value})
@@ -100,12 +131,12 @@ export default class Variables extends PureComponent<Props, State> {
 
   private handleFilterBlur() {}
 
-  private handleOpenModal = (): void => {
-    this.setState({overlayState: OverlayState.Open})
+  private handleOpenCreateOverlay = (): void => {
+    this.setState({createOverlayState: OverlayState.Open})
   }
 
   private handleCloseModal = (): void => {
-    this.setState({overlayState: OverlayState.Closed})
+    this.setState({createOverlayState: OverlayState.Closed})
   }
 
   private handleCreateVariable = async (variable: Variable): Promise<void> => {
@@ -133,33 +164,5 @@ export default class Variables extends PureComponent<Props, State> {
     }
 
     onChange()
-  }
-
-  private get emptyState(): JSX.Element {
-    const {orgName} = this.props
-    const {searchTerm} = this.state
-
-    if (_.isEmpty(searchTerm)) {
-      return (
-        <EmptyState size={ComponentSize.Medium}>
-          <EmptyState.Text
-            text={`${orgName} does not own any Variables , why not create one?`}
-            highlightWords={['Buckets']}
-          />
-          <Button
-            text="Create Variable"
-            icon={IconFont.Plus}
-            color={ComponentColor.Primary}
-            onClick={this.handleOpenModal}
-          />
-        </EmptyState>
-      )
-    }
-
-    return (
-      <EmptyState size={ComponentSize.Medium}>
-        <EmptyState.Text text="No Variables match your query" />
-      </EmptyState>
-    )
   }
 }
